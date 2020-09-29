@@ -6,10 +6,18 @@ https://github.com/keflavich/imf
 from abc import abstractmethod
 import numpy as np
 import scipy.interpolate
-
+from scipy.integrate import quad
+import ugali.isochrone
 from ugali.utils.logger import logger
+from ugali.analysis.model import Model, Parameter
 
 ############################################################
+
+#class IMF2(Model):
+
+#    _params = odict([
+#        ('alphaIMF',  Parameter(2.35, [1.5
+
 
 class IMF(object):
     """
@@ -18,7 +26,7 @@ class IMF(object):
 
     def __call__(self, mass, **kwargs):
         """ Call the pdf of the mass function """
-        return self.pdf(mass,**kwargs)
+        return self.pdf(mass,alphaIMF, **kwargs)
 
     def integrate(self, mass_min, mass_max, log_mode=True, weight=False, steps=1e4):
         """ Numerical Riemannn integral of the IMF (stupid simple).
@@ -187,16 +195,24 @@ class Salpeter1955(IMF):
     http://adsabs.harvard.edu/abs/1955ApJ...121..161S
     """
 
-    @classmethod
-    def pdf(cls, mass, log_mode=True):
+    def __init__(self, alphaIMF=2.35):
+        self.alphaIMF = 2.35
+        super(Salpeter1955,self).__init__()
+        
+    def normFunc(self, m, xx):
+        return m**-xx
+    
+    
+    def pdf(self, mass, log_mode=True):
         """ PDF for the Salpeter IMF.
 
         Value of 'a' is set to normalize the IMF to 1 between 0.1 and 100 Msun
         """
-        alpha = 2.35
 
-        a = 0.060285569480482866
-        dn_dm  = a * mass**(-alpha)
+#         if alpha is None: alpha = alpha
+        a = 1 / quad(self.normFunc,.1,100, args=self.alphaIMF)[0]
+        # a = 0.060285569480482866
+        dn_dm  = a * mass**(-self.alphaIMF)
 
         if log_mode:
             # Number per logarithmic mass range, i.e., dN/dlog(M)

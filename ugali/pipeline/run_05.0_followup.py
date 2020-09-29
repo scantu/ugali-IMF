@@ -8,8 +8,9 @@ from collections import OrderedDict as odict
 from multiprocessing import Pool
 
 import matplotlib
-try:             os.environ['DISPLAY']
-except KeyError: matplotlib.use('Agg')
+matplotlib.use('Agg')
+#try:             os.environ['DISPLAY']
+#except KeyError: matplotlib.use('Agg')
 
 import numpy
 import numpy as np
@@ -27,6 +28,7 @@ from ugali.utils.logger import logger
 from ugali.utils.shell import mkdir
 
 components = ['mcmc','membership','results','plot','collect','scan']
+components = ['mcmc','membership','results','plot']
 
 def make_filenames(config,label):
     config = ugali.utils.config.Config(config)
@@ -92,7 +94,7 @@ def do_plot(args):
     source = ugali.analysis.source.Source()
     source.load(srcfile,section='source')
 
-    outfile = samfile.replace('.npy','.png')
+    outfile = samfile.replace('.npy','.pdf')
     ugali.utils.plotting.plotTriangle(srcfile,samfile,burn=burn)
     logger.info("  Writing %s..."%outfile)
     plt.savefig(outfile,bbox_inches='tight',dpi=60)
@@ -105,21 +107,22 @@ def do_plot(args):
         plt.figure()
         kernel,isochrone = source.kernel,source.isochrone
         ugali.utils.plotting.plotMembership(config,data,kernel,isochrone)
-        outfile = samfile.replace('.npy','_mem.png')
+        outfile = samfile.replace('.npy','_mem.pdf')
         logger.info("  Writing %s..."%outfile)
-        plt.savefig(outfile,bbox_inches='tight',dpi=60)
+        plt.savefig(outfile,bbox_inches='tight',dpi=350)
         plt.close()
             
         plotter.plot6(data)
 
         outfile = samfile.replace('.npy','_6panel.png')
         logger.info("  Writing %s..."%outfile)
+        np.seterr(all='ignore')
         plt.savefig(outfile,bbox_inches='tight',dpi=60)
-
+        #plt.show()
         outfile = samfile.replace('.npy','_6panel.pdf')
         logger.info("  Writing %s..."%outfile)
         plt.savefig(outfile,bbox_inches='tight',dpi=60)
-
+        
         plt.close()
 
     try:

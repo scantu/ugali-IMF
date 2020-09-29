@@ -16,14 +16,13 @@ We choose the second option here.
 
 import os,sys
 from collections import OrderedDict as odict
-
+from multiprocessing import Pool
 import numpy
 import numpy as np
 import numpy.lib.recfunctions as recfuncs
 import scipy.stats
-
 import yaml
-
+import numba
 import ugali.utils.stats
 from ugali.utils.stats import Samples
 import ugali.analysis.scan
@@ -31,9 +30,10 @@ from ugali.utils.config import Config
 from ugali.analysis.kernel import kernelFactory
 from ugali.analysis.loglike import createSource, createLoglike
 from ugali.analysis.prior import UniformPrior, InversePrior
-
+from time import time
 from ugali.utils.logger import logger
 from ugali.utils.projector import dist2mod,mod2dist,gal2cel,gal2cel_angle
+import time
 
 try:
     from mpi4py import rc
@@ -79,7 +79,7 @@ class MCMC(object):
                                      len(self.params)*[UniformPrior()])))
         self.priors['extension'] = InversePrior()
 
-        self.pool = None
+        self.pool = Pool()
 
     def __str__(self):
         ret = "%s:\n"%self.__class__.__name__
@@ -117,6 +117,7 @@ class MCMC(object):
             ('position_angle',15.0),          # delta_pa (deg)
             ('age',0.5),                      # delta_age (Gyr)
             ('metallicity',0.0001),           # delta_z
+            ('alphaIMF',0.01), 
         ])
         return std
  
@@ -190,7 +191,8 @@ class MCMC(object):
             logger.debug(msg)
         niter+=1
         return _lnprob
-
+    
+#    @cuda.jit()
     def run(self, params=None, outfile=None):
         # Initailize the likelihood to maximal value
         mle =self.get_mle()
@@ -218,34 +220,45 @@ class MCMC(object):
         logger.info("Running MCMC chain...")
 
         p0 = self.get_ball(self.params,nwalkers)
-
-        kwargs = dict(threads=nthreads,pool=self.pool)
+#        import pdb; pdb.set_trace()
+        kwargs = dict(threads=nthreads,pool=Pool())
+        
         self.sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,**kwargs)
 
         # Burn the requested number of entries
         logger.info("Burning %i steps..."%nburn)
         pos,prob,state = self.sampler.run_mcmc(p0,nburn)
         self.sampler.reset() 
-
+        t1 = time.time()
         # Chain is shape (nwalkers,nsteps,nparams)
         # Samples is shape (nwalkers*nsteps,nparams):
         #for i,result in enumerate(self.sampler.sample(p0,iterations=nsamples)):
         for i,result in enumerate(self.sampler.sample(pos,prob,state,iterations=nsamples)):
+
             steps = i+1
-            if steps%10 == 0: logger.info("%i steps ..."%steps)
+#            t1 = time.time()
+            if steps%1 == 0:
+                
+                logger.info("%i steps ..."%steps)
+                tf = time.time() - t1
+                left = (nsamples - steps) * tf / 3600
+                logger.info("\t \t %g hours left"%left)
+        
             self.chain = self.sampler.chain
+            
             if (i==0) or (steps%self.nchunk==0):
                 samples = self.chain.reshape(-1,len(self.params),order='F')
+                logger.info(samples[-1])
                 self.samples = Samples(samples.T,names=self.params)
                 if outfile is not None: 
                     logger.info("Writing %i steps to %s..."%(steps,outfile))
                     self.write_samples(outfile)
- 
+            t1 = time.time()
         samples = self.chain.reshape(-1,len(self.params),order='F')
         self.samples = Samples(samples.T,names=self.params)
 
         if outfile is not None: self.write_samples(outfile)
- 
+        
     def write_samples(self,filename):
         np.save(filename,self.samples)
  
@@ -283,7 +296,7 @@ def createMCMC(config,srcfile,section='source',samples=None):
     source = ugali.analysis.source.Source()
     source.load(srcfile,section=section)
     loglike = ugali.analysis.loglike.createLoglike(config,source)
-
+#    import pdb; pdb.set_trace()
     mcmc = MCMC(config,loglike)
     if samples is not None:
         mcmc.load_samples(samples)
@@ -331,7 +344,7 @@ if __name__ == "__main__":
     srcfile = outfile.replace('.npy','.yaml')  # srcmdl and results
     memfile = outfile.replace('.npy','.fits')  # membership
     resfile = srcfile                          # results file
-    
+#     import pdb; pdb.set_trace()    
     source = ugali.analysis.loglike.createSource(config,section='mcmc')
     source.name = opts.name
 
@@ -357,14 +370,37 @@ if __name__ == "__main__":
         source.set_params(**grid.mle())
 
     params = list(source.get_free_params().keys())
-
+    logger.info(source)
     mcmc = MCMC(config,like)
 
     logger.info("Writing %s..."%srcfile)
     mcmc.write_srcmdl(srcfile)
 
+    """
+    # DEBUGGING
+    loglike = mcmc.loglike
+    roi = loglike.roi
+    mask = loglike.mask
+    
+    ra = np.linspace(354.3,354.4)
+    dec = np.linspace(-63.274,-63.256)
+
+    rr,dd = np.meshgrid(ra,dec)
+    zz = [mcmc.lnprob([2500,r,d,0.02]) for r,d in zip(rr.flat,dd.flat)]
+    zz = np.array(zz).reshape(rr.shape)
+    import pylab as plt
+    plt.ion()
+    plt.pcolormesh(rr,dd,zz)
+    import skymap
+    smap =skymap.Skymap(projection='cass',lon_0=354.36,lat_0=-63.265,
+                        llcrnrlon=354.3,urcrnrlon=354.4,
+                        llcrnrlat=-63.2725,urcrnrlat=-63.2575,
+                        celestial=False)
+    smap.draw_hpxmap(mask.mask_1.frac_roi_sparse,
+    import pdb; pdb.set_trace()
+    """
+
     mcmc.run(params,samfile)
-    #MCMC.run(mcmc,params,samfile)
 
     logger.info("Writing %s..."%srcfile)
     from ugali.analysis.results import write_results

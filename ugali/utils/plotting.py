@@ -35,15 +35,15 @@ from ugali.utils.healpix import ang2pix, get_nside
 from ugali.utils.projector import mod2dist,gal2cel,cel2gal
 from ugali.utils.projector import sphere2image,image2sphere
 from ugali.utils.config import Config
-
 from ugali.utils.logger import logger
+from ugali.utils.mlab import isstring
 
 params = {
     #'backend': 'eps',
     'axes.labelsize': 12,
     #'text.fontsize': 12,           
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
+    'xtick.labelsize': 15,
+    'ytick.labelsize': 15,
     'xtick.major.size': 3,      # major tick size in points
     'xtick.minor.size': 1.5,    # minor tick size in points
     'xtick.major.size': 3,      # major tick size in points
@@ -834,8 +834,8 @@ class SourcePlotter(BasePlotter):
         ugali.utils.plotting.drawIsochrone(self.isochrone, c='b', zorder=10)
         ax.set_xlim(-0.5, 1.)
         ax.set_ylim(24., 16.)
-        plt.xlabel(r'$g - r$')
-        plt.ylabel(r'$g$')
+        plt.xlabel(r'$%s - %s$' % (self.isochrone.band_1, self.isochrone.band_2))
+        plt.ylabel(r'$%s$' % self.isochrone.band_1)
         plt.xticks([-0.5, 0., 0.5, 1.])
         plt.yticks(np.arange(mmax - 1., mmin - 1., -1.))
 
@@ -848,7 +848,7 @@ class SourcePlotter(BasePlotter):
 
     def drawMembersSpatial(self,data):
         ax = plt.gca()
-        if isinstance(data,str):
+        if isstring(data):
             filename = data
             data = fitsio.read(filename)
 
@@ -886,7 +886,7 @@ class SourcePlotter(BasePlotter):
 
     def drawMembersCMD(self,data):
         ax = plt.gca()
-        if isinstance(data,str):
+        if isstring(data):
             filename = data
             data = fitsio.read(filename)
 
@@ -913,8 +913,8 @@ class SourcePlotter(BasePlotter):
                    marker='o', s=10, edgecolor='none', cmap='jet', vmin=0., vmax=1) 
         plt.xlim(cmin, cmax)
         plt.ylim(mmax, mmin)
-        plt.xlabel(r'$g - r$')
-        plt.ylabel(r'$g$')
+        plt.xlabel(r'$%s - %s$' % (self.isochrone.band_1, self.isochrone.band_2))
+        plt.ylabel(r'$%s$' % self.isochrone.band_1)
         #axes[1].yaxis.set_major_locator(MaxNLocator(prune='lower'))
         plt.xticks([-0.5, 0., 0.5, 1.])
         plt.yticks(np.arange(mmax - 1., mmin - 1., -1.))
@@ -1149,13 +1149,13 @@ def plotMembership(config, data=None, kernel=None, isochrone=None, **kwargs):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
     config = ugali.utils.config.Config(config)
-    if isinstance(data,str):
+    if isstring(data):
         data,header = fitsio.read(data,header=True)
 
-    defaults = dict(s=20,edgecolor='none',vmin=0,vmax=1,zorder=3)
+    defaults = dict(s=22,edgecolor='.22',vmin=0,vmax=1,zorder=3)
     kwargs = dict(list(defaults.items())+list(kwargs.items()))
-
-    bkg_kwargs = dict(s=3,zorder=0,c='0.70')
+    kwargs.setdefault('cmap',matplotlib.cm.viridis)
+    bkg_kwargs = dict(s=3,zorder=0,c='0.70', edgecolor='none')
     bkg_kwargs = dict(list(kwargs.items())+list(bkg_kwargs.items()))
 
     try: 
@@ -1170,8 +1170,8 @@ def plotMembership(config, data=None, kernel=None, isochrone=None, **kwargs):
     x,y = sphere2image(lon0,lat0,lon,lat)
     lon0,lat0 = image2sphere(lon0,lat0,(x.max()+x.min())/2.,(y.max()+y.min())/2.)
     lon,lat = sphere2image(lon0,lat0,lon,lat)
-
-    color = data['COLOR'][sort]
+    lon,lat = lon*60., lat*60.
+    color_mag = data['COLOR'][sort]
     cut = (prob > 0.01)
 
     # ADW: Sometimes may be mag_2
@@ -1201,23 +1201,23 @@ def plotMembership(config, data=None, kernel=None, isochrone=None, **kwargs):
 
     axes[0].set_xlim(lon.min(),lon.max())
     axes[0].set_ylim(lat.min(),lat.max())
-    axes[0].set_ylabel(r'$\Delta$ DEC (deg)')
-    axes[0].set_xlabel(r'$\Delta$ RA (deg)')
+    axes[0].set_ylabel(r'$\Delta$ Dec. (arcmin)')
+    axes[0].set_xlabel(r'$\Delta$ R.A. (arcmin)')
 
     axes[0].xaxis.set_major_locator(MaxNLocator(4))
     axes[0].yaxis.set_major_locator(MaxNLocator(4))
     axes[0].invert_xaxis()
 
-    axes[1].errorbar(color[cut],mag[cut],yerr=mag_err_1[cut],fmt='.',c='k',zorder=0.5)
-    axes[1].scatter(color[~cut],mag[~cut],**bkg_kwargs)
-    sc = axes[1].scatter(color[cut],mag[cut],c=prob[cut],**kwargs)
+    axes[1].errorbar(color_mag[cut],mag[cut],yerr=mag_err_1[cut],fmt='.',c='k',zorder=0.5)
+    axes[1].scatter(color_mag[~cut],mag[~cut],**bkg_kwargs)
+    sc = axes[1].scatter(color_mag[cut],mag[cut],c=prob[cut],**kwargs)
 
     if isochrone is not None:
         plt.sca(axes[1])
         drawIsochrone(isochrone,cookie=False)
-
-    axes[1].set_ylabel(r'$g$')
-    axes[1].set_xlabel(r'$g-r$')
+    plt.text(-.4,17.75,r'[Fe/H]$\sim -1.9$' '\n' r'$\tau\sim13.3$ Gyr', fontsize=15)
+    axes[1].set_xlabel(r'$g_0 - r_0$')
+    axes[1].set_ylabel(r'$g_0$')
     axes[1].set_ylim(config['mag']['max'],config['mag']['min'])
     axes[1].set_xlim(config['color']['min'],config['color']['max'])
     axes[1].xaxis.set_major_locator(MaxNLocator(4))
@@ -1238,11 +1238,11 @@ def drawIsochrone(isochrone, **kwargs):
     logger.debug(str(isochrone))
     if kwargs.pop('cookie',None):
         # Broad cookie cutter
-        defaults = dict(alpha=0.5, color='0.5', zorder=0, 
-                        linewidth=15, linestyle='-')
+        defaults = dict(alpha=0.5, color='0.5', zorder=10, 
+                        linewidth=13, linestyle='-')
     else:
         # Thin lines
-        defaults = dict(color='k', linestyle='-')
+        defaults = dict(color='k', linestyle='-', zorder=10)
     kwargs = dict(list(defaults.items())+list(kwargs.items()))
 
     isos = isochrone.isochrones if hasattr(isochrone,'isochrones') else [isochrone]
@@ -1262,12 +1262,12 @@ def drawIsochrone(isochrone, **kwargs):
         mags = np.split(mag,idx+1)
         colors = np.split(color,idx+1)
 
-        for i,(c,m) in enumerate(zip(colors,mags)):
-            msg = '%-4i (%g,%g) -- (%g,%g)'%(i,m[0],c[0],m[-1],c[-1])
+        for i,(cs,m) in enumerate(zip(colors,mags)):
+            msg = '%-4i (%g,%g) -- (%g,%g)'%(i,m[0],cs[0],m[-1],cs[-1])
             logger.debug(msg)
             if i > 0:
                 kwargs['label'] = None
-            ax.plot(c,m,**kwargs)
+            ax.plot(cs,m,**kwargs)
     return ax
 
 def drawKernel(kernel, contour=False, coords='C', **kwargs):
@@ -1457,21 +1457,32 @@ def plotTriangle(srcfile,samples,burn=0,**kwargs):
     samples = ugali.analysis.mcmc.Samples(samples)
 
     names = samples.names
-    labels = names 
+    labels = [r'$\log{\left(\lambda\right)}$', r'$\Delta$ R.A. $(^{\prime\prime})$', r'$\Delta$ Dec. $(^{\prime\prime})$', r'$a_h$ $(^\prime)$', r'$\epsilon$', r'$\phi$ (deg)', r'$(m-M)_0$ (mag)', r'$\tau$ (Gyr)', r'[Fe/H]']#names 
     truths = [params[n] for n in names]
+    truths[0] = np.log10(truths[0])
+    truths[1] = (344.1765 - truths[1]) * 3600
+    truths[2] = (-50.1633 - truths[2]) * 3600
+    truths[3] = truths[3] * 60
+    truths[-1] = np.log10(truths[-1]/0.0152)
+    
     chain = samples.get(burn=burn,clip=5)
-
+    chain[:,0] = np.log10(chain[:,0])
+    chain[:,1] = (344.1765 - chain[:,1]) * 3600
+    chain[:,2] = (-50.1633 - chain[:,2]) * 3600
+    chain[:,3] = chain[:,3] * 60
+    chain[:,-1] = np.log10(chain[:,-1]/0.0152)
     ### Triangle plot
     #extents = [[0,15e3],[323.6,323.8],[-59.8,-59.7],[0,0.1],[19.5,20.5]]
     
     kwargs.setdefault('range',None)
     kwargs.setdefault('plot_contours',True)
-    kwargs.setdefault('plot_datapoints',True)
+    kwargs.setdefault('plot_datapoints',False)
     kwargs.setdefault('verbose',False)
-    kwargs.setdefault('quantiles',[0.16,0.84])
-
+    kwargs.setdefault('quantiles',[0.16,0.5,0.84])
+    kwargs.setdefault('show_titles',True)
     if len(names) > 1:
-        fig = corner.corner(chain,labels=labels,truths=truths,**kwargs)
+        # fig = corner.corner(chain,labels=labels,truths=truths,**kwargs)
+        fig = corner.corner(chain,labels=labels,label_kwargs={'fontsize': 20},**kwargs)
     else:
         fig = plt.figure()
         plt.hist(chain,bins=100)
@@ -1491,7 +1502,7 @@ def plotTriangle(srcfile,samples,burn=0,**kwargs):
     label = list(map(str.capitalize,source.name.split('_')))
     label[-1] = label[-1].upper()
     title = '%s'%' '.join(label)
-    plt.suptitle(title)
+#    plt.suptitle(title, fontsize='30')
 
 
 ############################################################
@@ -1549,9 +1560,9 @@ def cutIsochronePath(g, r, g_err, r_err, isochrone, radius=0.1, return_all=False
 
     cut = np.logical_or(cut_1, cut_2)
     
-    # If using Padova isochrone, also include horizontal branch
-    if not np.all(isochrone.stage == 'Main'):
-        index_transition = np.nonzero(isochrone.stage > 3)[0][0] + 1
+    # Include horizontal branch if it exists
+    if not np.any(isochrone.stage == isochrone.hb_stage):
+        index_transition = np.nonzero(isochrone.stage==isochrone.hb_stage)[0][0]+1
         mag_1_hb = isochrone.mag_1[index_transition:] + isochrone.distance_modulus
         mag_2_hb = isochrone.mag_2[index_transition:] + isochrone.distance_modulus
         path_hb = makePath(mag_1_hb, mag_2_hb)

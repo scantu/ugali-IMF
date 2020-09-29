@@ -277,6 +277,17 @@ class Bressan2012(ParsecIsochrone):
                 (13,('y',float)),
                 (16,('stage',int)),
                 ]),
+        acs_wfc = odict([
+                (3, ('mass_init',float)),
+                (4, ('mass_act',float)),
+                (5, ('log_lum',float)),
+                (27, ('F550W',float)),
+                (29,('F606W',float)),
+                (30,('F660W',float)),
+                (34,('F814W',float)),
+                (35,('F850LP',float)),
+                (28,('stage',int)),
+                ]),
         )
 
     def _parse(self,filename):

@@ -31,10 +31,10 @@ class Source(object):
     _defaults = odict([
             ('richness' ,dict(name='Richness')),
             ('kernel'   ,dict(name='Plummer')),
-            ('isochrone',dict(name='Padova')),
+            ('isochrone',dict(name='Dotter2008')),
             ])
 
-    def __init__(self,name=None, **kwargs):
+    def __init__(self, name=None, **kwargs):
         self.set_model('richness',self.createRichness())
         self.set_model('kernel',self.createKernel())
         self.set_model('isochrone',self.createIsochrone())
@@ -55,35 +55,14 @@ class Source(object):
     def __getattr__(self, name):
         """ Overload __getattr__ to access parameters through self.getp.
         """
-        #for key,model in self.models.items():
-        #    if name in model.params:
-        #        return getattr(model, name)
-        #for key,model in self.models.items():
-        #    try:
-        #        return model.getp(name).value
-        #    except KeyError:
-        #        continue
-        ## Raises AttributeError
-        #return object.__getattribute__(self,name)
         try:
             return self.getp(name)
         except AttributeError as e:
             return object.__getattribute__(self,name)
 
     def __setattr__(self, name, value):
-        #for key,model in self.models.items():
-        #    if name in model.params:
-        #        self._sync[key] = True
-        #        return setattr(model, name, value)
-        #for key,model in self.models.items():
-        #    try:
-        #        ret = model.setp(name, value)
-        #        self._sync[key] = True
-        #        return ret
-        #    except KeyError:
-        #        continue
-        ## Raises AttributeError?
-        #return object.__setattr__(self, name, value)
+        """ Overload __setattr__ to access parameters through self.setp.
+        """
         try:
             return self.setp(name,value)
         except AttributeError:
@@ -97,7 +76,7 @@ class Source(object):
                 return ret
             except KeyError:
                 continue
-        raise AttributeError
+        raise AttributeError("No parameter: '%s'"%name)
 
     def getp(self, name):
         for key, model in self.models.items():
@@ -105,7 +84,7 @@ class Source(object):
                 return model.getp(name).value
             except KeyError:
                 continue
-        raise AttributeError
+        raise AttributeError("No parameter: '%s'"%name)
 
     @property
     def params(self):
@@ -118,9 +97,10 @@ class Source(object):
         return params
 
     def load(self,srcmdl,section=None):
-        if isinstance(srcmdl,str): 
+        # This is to get around string checking python2/3 issues
+        try: 
             params = yaml.load(open(srcmdl))
-        else:
+        except TypeError:
             params = copy.deepcopy(srcmdl)
 
         if section is not None: 

@@ -152,6 +152,15 @@ class Dotter2008(Isochrone):
                 (9, ('z',float)),
                 (10, ('y',float)),
                 ]),
+            acs_wfc = odict([
+                (1, ('mass',float)),
+                (4, ('log_lum',float)),
+                (8, ('F550M',float)),
+                (10, ('F606W',float)),
+                (14, ('F775W',float)),
+                (15, ('F814W',float)),
+                (16, ('F850LP',float)),
+                ]),
             )
 
     def _parse(self,filename):

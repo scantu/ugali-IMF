@@ -32,16 +32,16 @@ class Results(object):
         self.alpha = self.config['results'].get('alpha',0.10)
         self.nwalkers = self.config['mcmc'].get('nwalkers',100)
         self.nburn = self.config['results'].get('nburn',10)
-
+        self.coordsys = self.config['coords']['coordsys'].lower()
+        
         self.loglike = loglike
         self.source = self.loglike.source
         self.params = list(self.source.get_free_params().keys())
         self.samples = samples
 
     def load_samples(self,filename):
-        coordsys = self.config['coords']['coordsys']
         samples = Samples(filename)
-        self.samples = samples.supplement(coordsys=coordsys)
+        self.samples = samples.supplement(coordsys=self.coordsys)
 
 
     def get_mle(self):
@@ -237,12 +237,19 @@ class Results(object):
         lum = rich*stellar_luminosity
         lum_lo,lum_hi = rich_err[0]*stellar_luminosity,rich_err[1]*stellar_luminosity
         results['luminosity'] = ugali.utils.stats.interval(lum,lum_lo,lum_hi)
- 
-        Mv = self.source.absolute_magnitude(rich)
-        Mv_lo = self.source.absolute_magnitude(rich_err[0])
-        Mv_hi = self.source.absolute_magnitude(rich_err[1])
-        results['Mv'] = ugali.utils.stats.interval(Mv,Mv_lo,Mv_hi)
- 
+
+        # Absolute magnitude only calculated for DES isochrones with g,r 
+        try:
+            Mv = self.source.absolute_magnitude(rich)
+            Mv_lo = self.source.absolute_magnitude(rich_err[0])
+            Mv_hi = self.source.absolute_magnitude(rich_err[1])
+            results['Mv'] = ugali.utils.stats.interval(Mv,Mv_lo,Mv_hi)
+        except ValueError as e:
+            logger.warning("Skipping absolute magnitude")
+            logger.warn(str(e))
+            Mv = np.nan
+            results['Mv'] = Mv
+
         # ADW: WARNING this is very fragile.
         # Also, this is not quite right, should cut on the CMD available space
         kwargs = dict(richness=rich,mag_bright=16., mag_faint=23.,
@@ -261,7 +268,7 @@ class Results(object):
         results['surface_brightness'] = ugali.utils.stats.interval(mu,np.nan,np.nan)
  
         try: 
-            results['constellation'] = ugali.utils.projector.ang2const(lon,lat)[1]
+            results['constellation'] = ang2const(lon,lat,self.coordsys)[1]
         except:
             pass
         results['iau'] = ugali.utils.projector.ang2iau(lon,lat)

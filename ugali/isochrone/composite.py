@@ -15,6 +15,7 @@ from ugali.analysis.model import Model, Parameter
 from ugali.utils.logger import logger
 from ugali.isochrone.model import IsochroneModel, Isochrone
 from ugali.isochrone.mesa import Dotter2016
+from ugali.isochrone.dartmouth import Dotter2008
 from ugali.isochrone.parsec import Marigo2017
 
 class CompositeIsochrone(IsochroneModel):
@@ -28,18 +29,25 @@ class CompositeIsochrone(IsochroneModel):
             ])
 
     defaults = (IsochroneModel.defaults) + (
-        ('type','PadovaIsochrone','Default type of isochrone to create'),
+        ('type','Bressan2012','Default type of isochrone to create'),
         ('weights',None,'Relative weights for each isochrone'),
         )
     
     def __init__(self, isochrones, **kwargs):
         super(CompositeIsochrone,self).__init__(**kwargs)
 
+        # Remove composite kwargs so that others can be used as defaults
+        kwargs.pop('type',None)
+        kwargs.pop('weights',None)
+
         self.isochrones = []
         for i in isochrones:
             if isinstance(i,Isochrone):
                 iso = i
             else:
+                # Set the defaults from composite
+                [i.setdefault(*kw) for kw in kwargs.items()]
+                # Default isochrone type (ADW: do we want this?)
                 name = i.pop('name',self.type)
                 #iso = isochroneFactory(name=name,**i)
                 iso = factory(name=name,**i)
@@ -122,12 +130,18 @@ class CompositeIsochrone(IsochroneModel):
     stellarLuminosity = stellar_luminosity
     observableFraction = observable_fraction
 
+    def absolute_magnitude(self, richness=1, steps=1e4):
+        raise ValueError("Not implemented for CompositeIsochrone")
+
+    def absolute_magnitude_martin(self, richness=1, steps=1e4):
+        raise ValueError("Not implemented for CompositeIsochrone")
+
 # ADW: It would be better if the factory were in isochrone.__init__
 # but then you get into a circular import situation with the
 # CompositeIsochrone. This is an unfortunate design decision...
 
 # ADW: It'd be better for us to move away from generic aliases...
-class Dotter(Dotter2016): pass
+class Dotter(Dotter2008): pass
 class Padova(Marigo2017): pass
 class Composite(CompositeIsochrone): pass
 
