@@ -1,4 +1,4 @@
-This version of UGALI includes IMF functionality and more isochrone simulation functionality.
+# This version of UGALI includes IMF functionality and more isochrone simulation functionality added by Sarah Cantu in the course of her dissertation work.
 
 
 [![Build](https://img.shields.io/travis/DarkEnergySurvey/ugali.svg)](https://travis-ci.org/DarkEnergySurvey/ugali)
