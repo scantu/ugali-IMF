@@ -1,3 +1,6 @@
+This version of UGALI includes IMF functionality and more isochrone simulation functionality.
+
+
 [![Build](https://img.shields.io/travis/DarkEnergySurvey/ugali.svg)](https://travis-ci.org/DarkEnergySurvey/ugali)
 [![PyPI](https://img.shields.io/pypi/v/ugali.svg)](https://pypi.python.org/pypi/ugali)
 [![Release](https://img.shields.io/github/release/DarkEnergySurvey/ugali.svg)](../../releases)
